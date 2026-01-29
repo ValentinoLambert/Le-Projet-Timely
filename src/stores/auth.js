@@ -34,10 +34,19 @@ export const useAuthStore = defineStore('auth', {
     async register(name, email) {
       try {
         const response = await apiClient.post('/apikeys', { name, email });
-        this.setApiKey(response.data.api_key);
+        console.debug('auth.register response', response.status, response.data);
+
+        const d = response.data ?? {}
+        const key = d.key ?? '';
+        if (key) {
+          this.setApiKey(key);
+        } else {
+          console.warn('Pas de clé API trouvée dans la réponse', response.data);
+        }
         this.user = response.data;
         return response.data;
       } catch (error) {
+        console.error('auth.register erreur', error.response?.status, error.response?.data || error.message);
         throw error;
       }
     },
@@ -49,7 +58,6 @@ export const useAuthStore = defineStore('auth', {
     },
   },
 
-  // Configuration de la persistance comme indiqué dans le cours
   persist: {
     enabled: true,
     strategies: [

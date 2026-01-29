@@ -9,14 +9,23 @@ const name = ref('');
 const email = ref('');
 const error = ref('');
 
+const apiKeyShown = ref('')
+
 const register = async () => {
   try {
-    await authStore.register(name.value, email.value);
-    router.push('/');
+    const res = await authStore.register(name.value, email.value)
+    apiKeyShown.value = (res && (res.api_key || res.apikey || res.key)) || authStore.apiKey || ''
   } catch (err) {
-    error.value = 'Erreur lors de la création du compte';
+    error.value = (err && err.response && err.response.data && err.response.data.message) || err.message || 'Erreur lors de la création du compte'
+    console.error(err)
   }
-};
+}
+
+function copyKey() {
+  if (!apiKeyShown.value) return
+  navigator.clipboard?.writeText(apiKeyShown.value).catch(() => alert('Impossible de copier'))
+}
+
 </script>
 
 <template>
@@ -28,6 +37,12 @@ const register = async () => {
       <button type="submit">Créer mon compte</button>
     </form>
     <p v-if="error" style="color:red">{{ error }}</p>
+
+    <div v-if="apiKeyShown" style="margin-top:12px;">
+      <p><strong>Clé API :</strong> <code>{{ apiKeyShown }}</code></p>
+      <button @click="copyKey">Copier la clé</button>
+      <button @click="continueToHome" style="margin-left:8px">Continuer</button>
+    </div>
     <p>Déjà un compte ? <router-link to="/login">Se connecter</router-link></p>
   </div>
 </template>

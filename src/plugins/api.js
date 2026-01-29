@@ -1,9 +1,7 @@
-import axios from 'axios'
+// Deprecated: this plugin is unused. Use `src/plugins/axios.js` which
+// provides a single configured axios instance for the app.
 
+// Keeping this file as a no-op stub to avoid accidental imports.
 export default function setupApi(app) {
-  const api = axios.create({
-    baseURL: 'https://timely.edu.netlor.fr'
-  })
-
-  app.config.globalProperties.$api = api
+  // no-op
 }

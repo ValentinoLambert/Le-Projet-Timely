@@ -1,15 +1,16 @@
 import { createApp } from 'vue'
-import App from './App.vue'
 import { createPinia } from 'pinia'
 import piniaPersist from 'pinia-plugin-persist'
-import setupApi from './plugins/api'
+import App from './App.vue'
+import router from './router'
 
 const app = createApp(App)
-
 const pinia = createPinia()
-pinia.use(piniaPersist)
-app.use(pinia)
 
-setupApi(app)
+// Utiliser le plugin de persistance comme indiqué dans le cours
+pinia.use(piniaPersist)
+
+app.use(pinia)
+app.use(router)
 
 app.mount('#app')

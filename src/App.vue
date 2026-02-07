@@ -15,8 +15,10 @@ const logout = () => {
   <header v-if="authStore.isAuthenticated">
     <nav>
       <router-link to="/">Accueil</router-link> |
+      <router-link to="/settings">Paramètres</router-link> |
       <button @click="logout">Déconnexion</button>
     </nav>
+
 
 
   </header>

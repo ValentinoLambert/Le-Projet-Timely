@@ -32,7 +32,7 @@ const toggleActivity = async (activity) => {
     await activityStore.toggleActivity(activity);
     await activityStore.fetchActivities();
   } catch (err) {
-    alert('Erreur lors de la modification de l\'activité');
+    alert('Erreur lors de la modification de l activité');
   }
 };
 

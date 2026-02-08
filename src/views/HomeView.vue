@@ -1,6 +1,7 @@
 <script setup>
 import { useAuthStore } from '../stores/auth';
 import ObjectivesList from '../components/ObjectivesList.vue';
+import TimeTracker from '../components/TimeTracker.vue';
 
 const authStore = useAuthStore();
 </script>
@@ -12,17 +13,16 @@ const authStore = useAuthStore();
     
     <hr />
     
-    <!-- Section des objectifs journaliers -->
+    <!-- Section du Time Tracker -->
     <section>
-      <ObjectivesList />
+      <TimeTracker />
     </section>
 
     <hr />
 
-    <!-- Section du Time Tracker (Partie 4) -->
+    <!-- Section des objectifs journaliers -->
     <section>
-      <h2>Time Tracker</h2>
-      <p>(À venir dans la partie 4)</p>
+      <ObjectivesList />
     </section>
   </div>
 </template>

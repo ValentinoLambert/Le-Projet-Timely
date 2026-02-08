@@ -11,7 +11,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   const apiKey = localStorage.getItem('timely_api_key');
   if (apiKey) {
-    config.headers.Authorization = `key=${apiKey}`;
+    config.headers.Authorization = 'key=' + apiKey;
   }
   return config;
 });

@@ -1,19 +1,21 @@
 <script setup>
 import { ref } from 'vue';
 import { useAuthStore } from '../stores/auth';
+import { useToastStore } from '../stores/toast';
 import { useRouter } from 'vue-router';
 
 const authStore = useAuthStore();
+const toastStore = useToastStore();
 const router = useRouter();
 const apiKey = ref('');
-const error = ref('');
 
 const login = async () => {
   try {
     await authStore.login(apiKey.value);
+    toastStore.show('Connexion réussie');
     router.push('/');
   } catch (err) {
-    error.value = 'Clé API invalide ou erreur réseau';
+    toastStore.show('Clé API invalide');
   }
 };
 </script>
@@ -25,7 +27,6 @@ const login = async () => {
       <input v-model="apiKey" placeholder="Votre Clé API" required />
       <button type="submit">Se connecter</button>
     </form>
-    <p v-if="error" style="color:red">{{ error }}</p>
     <p>Pas de compte ? <router-link to="/register">S'inscrire</router-link></p>
   </div>
 </template>

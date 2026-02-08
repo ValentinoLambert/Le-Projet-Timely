@@ -3,24 +3,38 @@ import { onMounted, ref, computed } from 'vue';
 import { useTimeEntryStore } from '../stores/timeEntries';
 import { useProjectStore } from '../stores/projects';
 import { useActivityStore } from '../stores/activities';
+import { useToastStore } from '../stores/toast';
+import { formatDuration, calculateDuration } from '../mixins/durations';
+import { formatDate, formatDateTime } from '../mixins/dates';
 
 const timeEntryStore = useTimeEntryStore();
 const projectStore = useProjectStore();
 const activityStore = useActivityStore();
+const toastStore = useToastStore();
 
 const selectedProjectId = ref('');
 const selectedActivityId = ref('');
 const comment = ref('');
+
+// Computed pour le commentaire de l'activité en cours (synchronisé avec le store)
+const activeComment = computed({
+  get() {
+    return timeEntryStore.activeEntry ? (timeEntryStore.activeEntry.comment || '') : '';
+  },
+  set(value) {
+    if (timeEntryStore.activeEntry) {
+      timeEntryStore.updateActiveComment(value);
+    }
+  }
+});
 
 // Variables pour édition et création manuelle
 const editing = ref(null);
 const showManual = ref(false);
 const manualProject = ref('');
 const manualActivity = ref('');
-const manualStartDate = ref('');
-const manualStartTime = ref('');
-const manualEndDate = ref('');
-const manualEndTime = ref('');
+const manualStart = ref('');
+const manualEnd = ref('');
 const manualComment = ref('');
 
 // Filtres
@@ -32,13 +46,18 @@ const filterKeywords = ref('');
 onMounted(() => {
   projectStore.fetchProjects();
   activityStore.fetchActivities();
-  timeEntryStore.fetchTimeEntries();
 });
+
+// Mettre à jour le commentaire de l'activité en cours (appelé sur blur)
+const updateActiveComment = () => {
+  // La mise à jour est déjà faite via le computed setter
+  // Cette fonction existe juste pour le @blur
+};
 
 // Démarrer une nouvelle activité
 const startActivity = async () => {
   if (!selectedProjectId.value || !selectedActivityId.value) {
-    alert('Veuillez sélectionner un projet et une activité');
+    toastStore.show('Veuillez sélectionner un projet et une activité');
     return;
   }
 
@@ -51,8 +70,9 @@ const startActivity = async () => {
     selectedProjectId.value = '';
     selectedActivityId.value = '';
     comment.value = '';
+    toastStore.show('Chronomètre démarré');
   } catch (err) {
-    alert('Erreur lors du démarrage de l\'activité');
+    toastStore.show('Erreur lors du démarrage');
   }
 };
 
@@ -62,8 +82,9 @@ const stopActivity = async () => {
   
   try {
     await timeEntryStore.stopTimeEntry(timeEntryStore.activeEntry.id);
+    toastStore.show('Chronomètre arrêté');
   } catch (err) {
-    alert('Erreur lors de l\'arrêt de l\'activité');
+    toastStore.show('Erreur lors de l\'arrêt');
   }
 };
 
@@ -73,20 +94,33 @@ const deleteEntry = async (id) => {
   
   try {
     await timeEntryStore.deleteTimeEntry(id);
+    toastStore.show('Entrée supprimée');
   } catch (err) {
-    alert('Erreur lors de la suppression');
+    toastStore.show('Erreur lors de la suppression');
   }
 };
 
 // Trouver le nom d'un projet par son ID
 const getProjectName = (projectId) => {
-  const project = projectStore.projects.find(p => p.id === projectId);
+  let project = null;
+  for (let i = 0; i < projectStore.projects.length; i++) {
+    if (projectStore.projects[i].id === projectId) {
+      project = projectStore.projects[i];
+      break;
+    }
+  }
   return project ? project.name : 'Projet inconnu';
 };
 
 // Trouver le nom d'une activité par son ID
 const getActivityName = (activityId) => {
-  const activity = activityStore.activities.find(a => a.id === activityId);
+  let activity = null;
+  for (let i = 0; i < activityStore.activities.length; i++) {
+    if (activityStore.activities[i].id === activityId) {
+      activity = activityStore.activities[i];
+      break;
+    }
+  }
   return activity ? activity.name : 'Activité inconnue';
 };
 
@@ -115,8 +149,9 @@ const saveEdit = async () => {
       editing.value.comment
     );
     editing.value = null;
+    toastStore.show('Modifié');
   } catch (err) {
-    alert('Erreur lors de la modification');
+    toastStore.show('Erreur');
   }
 };
 
@@ -126,55 +161,100 @@ const cancelEdit = () => {
 
 // Création manuelle
 const createManualEntry = async () => {
-  if (!manualProject.value || !manualActivity.value || !manualStartDate.value || !manualStartTime.value || !manualEndDate.value || !manualEndTime.value) {
-    alert('Remplissez tous les champs obligatoires');
+  if (!manualProject.value || !manualActivity.value || !manualStart.value || !manualEnd.value) {
+    toastStore.show('Remplissez tous les champs obligatoires');
     return;
   }
   
-  // Convertir les dates du format français vers le format ISO
-  const [startDay, startMonth, startYear] = manualStartDate.value.split('/');
-  const [endDay, endMonth, endYear] = manualEndDate.value.split('/');
-  const startDateTime = `${startYear}-${startMonth}-${startDay} ${manualStartTime.value}:00`;
-  const endDateTime = `${endYear}-${endMonth}-${endDay} ${manualEndTime.value}:00`;
-  
   try {
+    // Convertir le format JJ/MM/YYYY HH:MM en ISO
+    const convertToISO = (dateStr) => {
+      // Format attendu: "15/01/2024 14:30"
+      const parts = dateStr.split(' ');
+      if (parts.length !== 2) {
+        throw new Error('Format invalide');
+      }
+      
+      const dateParts = parts[0].split('/');
+      if (dateParts.length !== 3) {
+        throw new Error('Format invalide');
+      }
+      
+      const timeParts = parts[1].split(':');
+      if (timeParts.length !== 2) {
+        throw new Error('Format invalide');
+      }
+      
+      const day = dateParts[0];
+      const month = dateParts[1];
+      const year = dateParts[2];
+      const hours = timeParts[0];
+      const minutes = timeParts[1];
+      
+      // Format ISO: YYYY-MM-DDTHH:MM:SSZ
+      return year + '-' + month + '-' + day + 'T' + hours + ':' + minutes + ':00Z';
+    };
+    
+    const startISO = convertToISO(manualStart.value);
+    const endISO = convertToISO(manualEnd.value);
+    
     await timeEntryStore.createPastTimeEntry(
       manualProject.value,
       manualActivity.value,
-      startDateTime,
-      endDateTime,
+      startISO,
+      endISO,
       manualComment.value
     );
     manualProject.value = '';
     manualActivity.value = '';
-    manualStartDate.value = '';
-    manualStartTime.value = '';
-    manualEndDate.value = '';
-    manualEndTime.value = '';
+    manualStart.value = '';
+    manualEnd.value = '';
     manualComment.value = '';
     showManual.value = false;
+    toastStore.show('Entrée passée créée');
   } catch (err) {
-    alert('Erreur lors de la création');
+    toastStore.show('Erreur: vérifiez le format des dates (JJ/MM/YYYY HH:MM)');
   }
 };
 
 // Filtrer les entrées
 const filteredEntries = computed(() => {
-  let entries = timeEntryStore.todayEntries;
+  let entries = [];
+  const todayEntries = timeEntryStore.todayEntries;
+  
+  for (let i = 0; i < todayEntries.length; i++) {
+    entries.push(todayEntries[i]);
+  }
   
   if (filterProject.value) {
-    entries = entries.filter(e => e.project_id === filterProject.value);
+    const filtered = [];
+    for (let i = 0; i < entries.length; i++) {
+      if (entries[i].project_id === filterProject.value) {
+        filtered.push(entries[i]);
+      }
+    }
+    entries = filtered;
   }
   
   if (filterActivity.value) {
-    entries = entries.filter(e => e.activity_id === filterActivity.value);
+    const filtered = [];
+    for (let i = 0; i < entries.length; i++) {
+      if (entries[i].activity_id === filterActivity.value) {
+        filtered.push(entries[i]);
+      }
+    }
+    entries = filtered;
   }
   
   if (filterKeywords.value) {
     const keywords = filterKeywords.value.toLowerCase();
-    entries = entries.filter(e => 
-      e.comment && e.comment.toLowerCase().includes(keywords)
-    );
+    const filtered = [];
+    for (let i = 0; i < entries.length; i++) {
+      if (entries[i].comment && entries[i].comment.toLowerCase().includes(keywords)) {
+        filtered.push(entries[i]);
+      }
+    }
+    entries = filtered;
   }
   
   return entries;
@@ -191,6 +271,19 @@ const filteredEntries = computed(() => {
       <p>Projet : {{ getProjectName(timeEntryStore.activeEntry.project_id) }}</p>
       <p>Activité : {{ getActivityName(timeEntryStore.activeEntry.activity_id) }}</p>
       <p>Démarré à : {{ timeEntryStore.activeEntry.start }}</p>
+      
+      <div style="margin: 10px 0;">
+        <label>Notes sur l'activité en cours :</label>
+        <textarea 
+          v-model="activeComment" 
+          @blur="updateActiveComment"
+          placeholder="Prenez des notes..."
+          rows="4"
+          style="width: 100%; padding: 8px;"
+        ></textarea>
+        <small>Les notes sont sauvegardées automatiquement</small>
+      </div>
+      
       <button @click="stopActivity">Arrêter</button>
     </div>
 
@@ -203,7 +296,7 @@ const filteredEntries = computed(() => {
           <select v-model="selectedProjectId" required>
             <option value="">-- Sélectionner --</option>
             <option 
-              v-for="project in projectStore.projects.filter(p => p.is_enabled)" 
+              v-for="project in projectStore.activeProjects" 
               :key="project.id" 
               :value="project.id"
             >
@@ -217,7 +310,7 @@ const filteredEntries = computed(() => {
           <select v-model="selectedActivityId" required>
             <option value="">-- Sélectionner --</option>
             <option 
-              v-for="activity in activityStore.activities.filter(a => a.is_enabled)" 
+              v-for="activity in activityStore.activeActivities" 
               :key="activity.id" 
               :value="activity.id"
             >
@@ -252,7 +345,7 @@ const filteredEntries = computed(() => {
           <label>Projet :</label>
           <select v-model="manualProject" required>
             <option value="">-- Sélectionner --</option>
-            <option v-for="project in projectStore.projects.filter(p => p.is_enabled)" :key="project.id" :value="project.id">
+            <option v-for="project in projectStore.activeProjects" :key="project.id" :value="project.id">
               {{ project.name }}
             </option>
           </select>
@@ -261,26 +354,18 @@ const filteredEntries = computed(() => {
           <label>Activité :</label>
           <select v-model="manualActivity" required>
             <option value="">-- Sélectionner --</option>
-            <option v-for="activity in activityStore.activities.filter(a => a.is_enabled)" :key="activity.id" :value="activity.id">
+            <option v-for="activity in activityStore.activeActivities" :key="activity.id" :value="activity.id">
               {{ activity.name }}
             </option>
           </select>
         </div>
         <div>
-          <label>Date de début (JJ/MM/YYYY) :</label>
-          <input v-model="manualStartDate" type="text" required placeholder="15/01/2024" />
+          <label>Début (JJ/MM/YYYY HH:MM) :</label>
+          <input v-model="manualStart" type="text" required placeholder="15/01/2024 14:30" />
         </div>
         <div>
-          <label>Heure de début (HH:MM) :</label>
-          <input v-model="manualStartTime" type="text" required placeholder="14:30" />
-        </div>
-        <div>
-          <label>Date de fin (JJ/MM/YYYY) :</label>
-          <input v-model="manualEndDate" type="text" required placeholder="15/01/2024" />
-        </div>
-        <div>
-          <label>Heure de fin (HH:MM) :</label>
-          <input v-model="manualEndTime" type="text" required placeholder="16:00" />
+          <label>Fin (JJ/MM/YYYY HH:MM) :</label>
+          <input v-model="manualEnd" type="text" required placeholder="15/01/2024 16:00" />
         </div>
         <div>
           <label>Commentaire :</label>
@@ -320,7 +405,7 @@ const filteredEntries = computed(() => {
     <div v-if="timeEntryStore.loading">Chargement...</div>
 
     <div v-else-if="filteredEntries.length > 0">
-      <ul>
+      <transition-group name="list" tag="ul">
         <li v-for="entry in filteredEntries" :key="entry.id">
           <!-- Mode édition -->
           <div v-if="editing && editing.id === entry.id" style="border: 1px solid blue; padding: 10px;">
@@ -361,8 +446,8 @@ const filteredEntries = computed(() => {
             <strong>{{ getProjectName(entry.project_id) }}</strong> - 
             {{ getActivityName(entry.activity_id) }}
             <br />
-            Début : {{ entry.start }}
-            <span v-if="entry.end"> | Fin : {{ entry.end }}</span>
+            Début : {{ formatDateTime(entry.start) }}
+            <span v-if="entry.end"> | Fin : {{ formatDateTime(entry.end) }}</span>
             <br />
             <span v-if="entry.comment">{{ entry.comment }}</span>
             <br />
@@ -370,9 +455,30 @@ const filteredEntries = computed(() => {
             <button @click="deleteEntry(entry.id)">Supprimer</button>
           </div>
         </li>
-      </ul>
+      </transition-group>
     </div>
 
     <p v-else>Aucune activité enregistrée aujourd'hui.</p>
   </div>
 </template>
+
+<style scoped>
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.5s ease;
+}
+
+.list-enter-from {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+
+.list-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+.list-move {
+  transition: transform 0.5s ease;
+}
+</style>

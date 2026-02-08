@@ -1,47 +1,45 @@
 <script setup>
 import { ref } from 'vue';
 import { useAuthStore } from '../stores/auth';
+import { useToastStore } from '../stores/toast';
 import { useRouter } from 'vue-router';
 
 const authStore = useAuthStore();
+const toastStore = useToastStore();
 const router = useRouter();
 const name = ref('');
 const email = ref('');
-const error = ref('');
-
-const apiKeyShown = ref('')
+const apiKeyShown = ref('');
 
 const register = async () => {
   try {
-    const res = await authStore.register(name.value, email.value)
-    apiKeyShown.value = (res && (res.api_key || res.apikey || res.key)) || authStore.apiKey || ''
+    const res = await authStore.register(name.value, email.value);
+    apiKeyShown.value = (res && (res.api_key || res.apikey || res.key)) || authStore.apiKey || '';
+    toastStore.show('Compte créé');
   } catch (err) {
-    error.value = (err && err.response && err.response.data && err.response.data.message) || err.message || 'Erreur lors de la création du compte'
-    console.error(err)
+    toastStore.show('Erreur lors de la création du compte');
   }
-}
+};
 
-function copyKey() {
-  if (!apiKeyShown.value) return
-  navigator.clipboard?.writeText(apiKeyShown.value).catch(() => alert('Impossible de copier'))
+function continueToHome() {
+  router.push('/');
 }
-
 </script>
 
 <template>
   <div>
     <h1>Inscription</h1>
     <form @submit.prevent="register">
-      <input v-model="name" placeholder="Nom" required />
+      <input v-model="name" placeholder="Nom complet" required />
       <input v-model="email" type="email" placeholder="Email" required />
       <button type="submit">Créer mon compte</button>
     </form>
-    <p v-if="error" style="color:red">{{ error }}</p>
 
     <div v-if="apiKeyShown" style="margin-top:12px;">
-      <p><strong>Clé API :</strong> <code>{{ apiKeyShown }}</code></p>
-      <button @click="copyKey">Copier la clé</button>
-      <button @click="continueToHome" style="margin-left:8px">Continuer</button>
+      <p><strong>Votre clé API :</strong></p>
+      <p><code>{{ apiKeyShown }}</code></p>
+      <p style="color: red;">Conservez cette clé, elle ne sera plus affichée.</p>
+      <button @click="continueToHome">Continuer</button>
     </div>
     <p>Déjà un compte ? <router-link to="/login">Se connecter</router-link></p>
   </div>

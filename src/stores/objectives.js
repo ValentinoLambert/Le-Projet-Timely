@@ -9,14 +9,34 @@ export const useObjectiveStore = defineStore('objectives', {
   },
 
   getters: {
-    // Filtrer les objectifs non atteints
-    pendingObjectives: (state) => state.objectives.filter(o => !o.done),
-    // Filtrer les objectifs atteints
-    completedObjectives: (state) => state.objectives.filter(o => o.done),
-    // Calculer le taux de réalisation (pour le dashboard par exemple)
-    completionRate: (state) => {
-      if (state.objectives.length === 0) return 0;
-      return Math.round((state.objectives.filter(o => o.done).length / state.objectives.length) * 100);
+    // Objectifs du jour
+    todayObjectives(state) {
+      const today = new Date().toDateString();
+      const result = [];
+      for (let i = 0; i < state.objectives.length; i++) {
+        const objDate = new Date(state.objectives[i].date);
+        if (objDate.toDateString() === today) {
+          result.push(state.objectives[i]);
+        }
+      }
+      return result;
+    },
+
+    // Nombre d'objectifs atteints aujourd'hui
+    todayDoneCount() {
+      let count = 0;
+      const todayObjs = this.todayObjectives;
+      for (let i = 0; i < todayObjs.length; i++) {
+        if (todayObjs[i].done) {
+          count = count + 1;
+        }
+      }
+      return count;
+    },
+
+    // Nombre total d'objectifs aujourd'hui
+    todayTotalCount() {
+      return this.todayObjectives.length;
     }
   },
 
@@ -27,7 +47,9 @@ export const useObjectiveStore = defineStore('objectives', {
       try {
         const response = await this.$api.get('/daily-objectives');
         this.objectives.length = 0;
-        this.objectives.push(...response.data);
+        for (let i = 0; i < response.data.length; i++) {
+          this.objectives.push(response.data[i]);
+        }
       } catch (error) {
         console.error('Erreur lors de la récupération des objectifs', error);
       } finally {
@@ -49,7 +71,7 @@ export const useObjectiveStore = defineStore('objectives', {
     async toggleObjective(objective) {
       const action = objective.done ? 'undone' : 'done';
       try {
-        const response = await this.$api.patch(`/daily-objectives/${objective.id}/${action}`);
+        const response = await this.$api.patch('/daily-objectives/' + objective.id + '/' + action);
         // Mise à jour locale
         const index = this.objectives.findIndex(o => o.id === objective.id);
         if (index !== -1) {
@@ -63,7 +85,7 @@ export const useObjectiveStore = defineStore('objectives', {
     // Supprimer un objectif
     async deleteObjective(id) {
       try {
-        await this.$api.delete(`/daily-objectives/${id}`);
+        await this.$api.delete('/daily-objectives/' + id);
         const index = this.objectives.findIndex(o => o.id === id);
         if (index !== -1) {
           this.objectives.splice(index, 1);

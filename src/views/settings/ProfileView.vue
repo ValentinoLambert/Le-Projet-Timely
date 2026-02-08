@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '../../stores/auth';
+import { useToastStore } from '../../stores/toast';
 import apiClient from '../../plugins/axios';
 
 const authStore = useAuthStore();
+const toastStore = useToastStore();
 
 const name = ref('');
 const email = ref('');
@@ -17,7 +19,7 @@ onMounted(() => {
 
 const updateProfile = async () => {
   if (!name.value || !email.value) {
-    alert('Veuillez remplir tous les champs');
+    toastStore.show('Veuillez remplir tous les champs');
     return;
   }
 
@@ -27,9 +29,9 @@ const updateProfile = async () => {
       email: email.value
     });
     authStore.user = response.data;
-    alert('Profil mis à jour');
+    toastStore.show('Profil mis à jour avec succès');
   } catch (err) {
-    alert('Erreur lors de la mise à jour du profil');
+    toastStore.show('Erreur lors de la mise à jour du profil');
   }
 };
 </script>

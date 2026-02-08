@@ -35,8 +35,8 @@ export const useAuthStore = defineStore('auth', {
         const response = await this.$api.post('/apikeys', { name, email });
         console.debug('auth.register response', response.status, response.data);
 
-        const d = response.data ?? {}
-        const key = d.key ?? '';
+        const d = response.data || {};
+        const key = d.key || '';
         if (key) {
           this.setApiKey(key);
         } else {
@@ -45,7 +45,9 @@ export const useAuthStore = defineStore('auth', {
         this.user = response.data;
         return response.data;
       } catch (error) {
-        console.error('auth.register erreur', error.response?.status, error.response?.data || error.message);
+        const status = error.response && error.response.status;
+        const data = error.response && error.response.data;
+        console.error('auth.register erreur', status, data || error.message);
         throw error;
       }
     },

@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia';
-import apiClient from '../plugins/axios';
 
 export const useActivityStore = defineStore('activities', {
   state() {
@@ -19,8 +18,9 @@ export const useActivityStore = defineStore('activities', {
     async fetchActivities() {
       this.loading = true;
       try {
-        const response = await apiClient.get('/activities');
-        this.activities = response.data;
+        const response = await this.$api.get('/activities');
+        this.activities.length = 0;
+        this.activities.push(...response.data);
       } catch (error) {
         console.error('Erreur lors de la récupération des activités', error);
       } finally {
@@ -31,7 +31,7 @@ export const useActivityStore = defineStore('activities', {
     // Créer une nouvelle activité
     async createActivity(name, color) {
       try {
-        const response = await apiClient.post('/activities', { name, color });
+        const response = await this.$api.post('/activities', { name, color });
         this.activities.push(response.data);
       } catch (error) {
         throw error;
@@ -42,7 +42,7 @@ export const useActivityStore = defineStore('activities', {
     async toggleActivity(activity) {
       const action = activity.active ? 'disable' : 'enable';
       try {
-        const response = await apiClient.patch(`/activities/${activity.id}/${action}`);
+        const response = await this.$api.patch(`/activities/${activity.id}/${action}`);
         const index = this.activities.findIndex(a => a.id === activity.id);
         if (index !== -1) {
           this.activities[index] = response.data;
@@ -51,10 +51,5 @@ export const useActivityStore = defineStore('activities', {
         throw error;
       }
     }
-  },
-
-  persist: {
-    enabled: true,
-    strategies: [{ storage: localStorage, paths: ['activities'] }]
   }
 });

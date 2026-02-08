@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia';
-import apiClient from '../plugins/axios';
 
 export const useAuthStore = defineStore('auth', {
   state() {
@@ -22,7 +21,7 @@ export const useAuthStore = defineStore('auth', {
     async login(apiKey) {
       this.setApiKey(apiKey);
       try {
-        const response = await apiClient.get('/profile');
+        const response = await this.$api.get('/profile');
         this.user = response.data;
         return response.data;
       } catch (error) {
@@ -33,7 +32,7 @@ export const useAuthStore = defineStore('auth', {
 
     async register(name, email) {
       try {
-        const response = await apiClient.post('/apikeys', { name, email });
+        const response = await this.$api.post('/apikeys', { name, email });
         console.debug('auth.register response', response.status, response.data);
 
         const d = response.data ?? {}

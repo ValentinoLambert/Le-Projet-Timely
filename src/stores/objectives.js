@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia';
-import apiClient from '../plugins/axios';
 
 export const useObjectiveStore = defineStore('objectives', {
   state() {
@@ -26,8 +25,9 @@ export const useObjectiveStore = defineStore('objectives', {
     async fetchObjectives() {
       this.loading = true;
       try {
-        const response = await apiClient.get('/daily-objectives');
-        this.objectives = response.data;
+        const response = await this.$api.get('/daily-objectives');
+        this.objectives.length = 0;
+        this.objectives.push(...response.data);
       } catch (error) {
         console.error('Erreur lors de la récupération des objectifs', error);
       } finally {
@@ -38,7 +38,7 @@ export const useObjectiveStore = defineStore('objectives', {
     // Créer un nouvel objectif
     async createObjective(name, content) {
       try {
-        const response = await apiClient.post('/daily-objectives', { name, content });
+        const response = await this.$api.post('/daily-objectives', { name, content });
         this.objectives.push(response.data);
       } catch (error) {
         throw error;
@@ -49,7 +49,7 @@ export const useObjectiveStore = defineStore('objectives', {
     async toggleObjective(objective) {
       const action = objective.done ? 'undone' : 'done';
       try {
-        const response = await apiClient.patch(`/daily-objectives/${objective.id}/${action}`);
+        const response = await this.$api.patch(`/daily-objectives/${objective.id}/${action}`);
         // Mise à jour locale
         const index = this.objectives.findIndex(o => o.id === objective.id);
         if (index !== -1) {
@@ -63,17 +63,14 @@ export const useObjectiveStore = defineStore('objectives', {
     // Supprimer un objectif
     async deleteObjective(id) {
       try {
-        await apiClient.delete(`/daily-objectives/${id}`);
-        this.objectives = this.objectives.filter(o => o.id !== id);
+        await this.$api.delete(`/daily-objectives/${id}`);
+        const index = this.objectives.findIndex(o => o.id === id);
+        if (index !== -1) {
+          this.objectives.splice(index, 1);
+        }
       } catch (error) {
         throw error;
       }
     }
-  },
-
-  // Persistance pour garder les objectifs en cache localement
-  persist: {
-    enabled: true,
-    strategies: [{ storage: localStorage, paths: ['objectives'] }]
   }
 });

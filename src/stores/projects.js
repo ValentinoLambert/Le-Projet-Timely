@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia';
-import apiClient from '../plugins/axios';
 
 export const useProjectStore = defineStore('projects', {
   state() {
@@ -19,8 +18,9 @@ export const useProjectStore = defineStore('projects', {
     async fetchProjects() {
       this.loading = true;
       try {
-        const response = await apiClient.get('/projects');
-        this.projects = response.data;
+        const response = await this.$api.get('/projects');
+        this.projects.length = 0;
+        this.projects.push(...response.data);
       } catch (error) {
         console.error('Erreur lors de la récupération des projets', error);
       } finally {
@@ -31,7 +31,7 @@ export const useProjectStore = defineStore('projects', {
     // Créer un nouveau projet
     async createProject(name, description) {
       try {
-        const response = await apiClient.post('/projects', { name, description });
+        const response = await this.$api.post('/projects', { name, description });
         this.projects.push(response.data);
       } catch (error) {
         throw error;
@@ -43,7 +43,7 @@ export const useProjectStore = defineStore('projects', {
       // Si le projet est actif, on appelle l'endpoint disable, sinon enable
       const action = project.active ? 'disable' : 'enable';
       try {
-        const response = await apiClient.patch(`/projects/${project.id}/${action}`);
+        const response = await this.$api.patch(`/projects/${project.id}/${action}`);
         // Mise à jour locale du projet dans la liste pour refléter le changement
         const index = this.projects.findIndex(p => p.id === project.id);
         if (index !== -1) {
@@ -53,11 +53,5 @@ export const useProjectStore = defineStore('projects', {
         throw error;
       }
     }
-  },
-
-  // Persistance optionnelle pour garder la liste en cache si besoin
-  persist: {
-    enabled: true,
-    strategies: [{ storage: localStorage, paths: ['projects'] }]
   }
 });

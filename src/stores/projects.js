@@ -10,7 +10,7 @@ export const useProjectStore = defineStore('projects', {
 
   getters: {
     // Retourne uniquement les projets actifs
-    activeProjects: (state) => state.projects.filter(p => p.active),
+    activeProjects: (state) => state.projects.filter(p => p.is_enabled),
   },
 
   actions: {
@@ -40,15 +40,14 @@ export const useProjectStore = defineStore('projects', {
     
     // Activer ou désactiver un projet
     async toggleProject(project) {
-      // Si le projet est actif, on appelle l'endpoint disable, sinon enable
-      const action = project.active ? 'disable' : 'enable';
+      const action = project.is_enabled ? 'disable' : 'enable';
       try {
         const response = await this.$api.patch(`/projects/${project.id}/${action}`);
-        // Mise à jour locale du projet dans la liste pour refléter le changement
         const index = this.projects.findIndex(p => p.id === project.id);
         if (index !== -1) {
           this.projects[index] = response.data;
         }
+        return response.data;
       } catch (error) {
         throw error;
       }

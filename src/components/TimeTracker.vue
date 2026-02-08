@@ -28,8 +28,8 @@ const startActivity = async () => {
 
   try {
     await timeEntryStore.createTimeEntry(
-      parseInt(selectedProjectId.value),
-      parseInt(selectedActivityId.value),
+      selectedProjectId.value,
+      selectedActivityId.value,
       comment.value
     );
     selectedProjectId.value = '';
@@ -97,7 +97,7 @@ const getActivityName = (activityId) => {
           <select v-model="selectedProjectId" required>
             <option value="">-- Sélectionner --</option>
             <option 
-              v-for="project in projectStore.projects.filter(p => p.active)" 
+              v-for="project in projectStore.projects.filter(p => p.is_enabled)" 
               :key="project.id" 
               :value="project.id"
             >
@@ -111,7 +111,7 @@ const getActivityName = (activityId) => {
           <select v-model="selectedActivityId" required>
             <option value="">-- Sélectionner --</option>
             <option 
-              v-for="activity in activityStore.activities.filter(a => a.active)" 
+              v-for="activity in activityStore.activities.filter(a => a.is_enabled)" 
               :key="activity.id" 
               :value="activity.id"
             >

@@ -10,7 +10,7 @@ export const useActivityStore = defineStore('activities', {
 
   getters: {
     // Retourne uniquement les activités actives
-    activeActivities: (state) => state.activities.filter(a => a.active),
+    activeActivities: (state) => state.activities.filter(a => a.is_enabled),
   },
 
   actions: {
@@ -40,7 +40,7 @@ export const useActivityStore = defineStore('activities', {
 
     // Activer ou désactiver une activité
     async toggleActivity(activity) {
-      const action = activity.active ? 'disable' : 'enable';
+      const action = activity.is_enabled ? 'disable' : 'enable';
       try {
         const response = await this.$api.patch(`/activities/${activity.id}/${action}`);
         const index = this.activities.findIndex(a => a.id === activity.id);

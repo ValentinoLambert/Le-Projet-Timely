@@ -23,9 +23,11 @@ export const useAuthStore = defineStore('auth', {
       try {
         const response = await this.$api.get('/profile');
         this.user = response.data;
+        this.$toast.success(`Bienvenue ${this.user.name} !`);
         return response.data;
       } catch (error) {
         this.logout();
+        this.$toast.error("Échec de la connexion. Vérifiez votre clé API.");
         throw error;
       }
     },
@@ -33,8 +35,7 @@ export const useAuthStore = defineStore('auth', {
     async register(name, email) {
       try {
         const response = await this.$api.post('/apikeys', { name, email });
-        console.debug('auth.register response', response.status, response.data);
-
+        
         const d = response.data || {};
         const key = d.key || '';
         if (key) {
@@ -43,11 +44,13 @@ export const useAuthStore = defineStore('auth', {
           console.warn('Pas de clé API trouvée dans la réponse', response.data);
         }
         this.user = response.data;
+        this.$toast.success("Compte créé avec succès !");
         return response.data;
       } catch (error) {
         const status = error.response && error.response.status;
         const data = error.response && error.response.data;
         console.error('auth.register erreur', status, data || error.message);
+        this.$toast.error("Erreur lors de l'inscription.");
         throw error;
       }
     },
@@ -56,6 +59,7 @@ export const useAuthStore = defineStore('auth', {
       this.apiKey = null;
       this.user = null;
       localStorage.removeItem('timely_api_key');
+      this.$toast.info("Déconnecté.");
     },
   },
 
@@ -66,3 +70,4 @@ export const useAuthStore = defineStore('auth', {
     ]
   }
 });
+

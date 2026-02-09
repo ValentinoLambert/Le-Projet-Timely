@@ -108,6 +108,7 @@ export const useTimeEntryStore = defineStore('timeEntries', {
         }
       } catch (error) {
         console.error('Erreur lors de la récupération des time entries', error);
+        this.$toast.error("Erreur chargement entrées.");
       } finally {
         this.loading = false;
       }
@@ -122,8 +123,10 @@ export const useTimeEntryStore = defineStore('timeEntries', {
           comment
         });
         this.timeEntries.push(response.data);
+        this.$toast.success("Tracker démarré !");
         return response.data;
       } catch (error) {
+        this.$toast.error("Erreur démarrage tracker.");
         throw error;
       }
     },
@@ -139,8 +142,10 @@ export const useTimeEntryStore = defineStore('timeEntries', {
           comment
         });
         this.timeEntries.push(response.data);
+        this.$toast.success("Entrée ajoutée !");
         return response.data;
       } catch (error) {
+        this.$toast.error("Erreur ajout entrée.");
         throw error;
       }
     },
@@ -204,12 +209,14 @@ export const useTimeEntryStore = defineStore('timeEntries', {
         // Rafraîchir la liste pour avoir les données complètes avec relations
         await this.fetchTimeEntries();
         
+        this.$toast.success("Entrée mise à jour.");
         return response.data;
       } catch (error) {
         console.error('Erreur updateTimeEntry:', error.response ? error.response.data : error);
         if (error.response && error.response.data && error.response.data.errors) {
           console.error('Détails des erreurs:', error.response.data.errors);
         }
+        this.$toast.error("Erreur mise à jour.");
         throw error;
       }
     },
@@ -250,7 +257,9 @@ export const useTimeEntryStore = defineStore('timeEntries', {
         if (index !== -1) {
           this.timeEntries[index] = response.data;
         }
+        this.$toast.info("Tracker arrêté.");
       } catch (error) {
+        this.$toast.error("Erreur arrêt tracker.");
         throw error;
       }
     },
@@ -263,9 +272,12 @@ export const useTimeEntryStore = defineStore('timeEntries', {
         if (index !== -1) {
           this.timeEntries.splice(index, 1);
         }
+        this.$toast.info("Entrée supprimée.");
       } catch (error) {
+        this.$toast.error("Erreur suppression.");
         throw error;
       }
     }
   }
 });
+

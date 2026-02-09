@@ -33,6 +33,7 @@ export const useActivityStore = defineStore('activities', {
         }
       } catch (error) {
         console.error('Erreur lors de la récupération des activités', error);
+        this.$toast.error("Impossible de charger les activités.");
       } finally {
         this.loading = false;
       }
@@ -43,7 +44,9 @@ export const useActivityStore = defineStore('activities', {
       try {
         const response = await this.$api.post('/activities', { name, color });
         this.activities.push(response.data);
+        this.$toast.success("Activité créée !");
       } catch (error) {
+        this.$toast.error("Erreur lors de la création de l'activité.");
         throw error;
       }
     },
@@ -56,8 +59,10 @@ export const useActivityStore = defineStore('activities', {
         if (index !== -1) {
           this.activities[index] = response.data;
         }
+        this.$toast.success("Activité mise à jour.");
         return response.data;
       } catch (error) {
+        this.$toast.error("Erreur de mise à jour.");
         throw error;
       }
     },
@@ -71,9 +76,14 @@ export const useActivityStore = defineStore('activities', {
         if (index !== -1) {
           this.activities[index] = response.data;
         }
+        const msg = activity.is_enabled ? "Activité désactivée." : "Activité activée.";
+        this.$toast.info(msg);
       } catch (error) {
+        this.$toast.error("Erreur changement d'état.");
         throw error;
       }
     }
   }
 });
+
+

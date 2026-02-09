@@ -17,7 +17,11 @@ const router = createRouter({
         { path: 'activities', name: 'settings-activities', component: () => import('../views/settings/ActivitiesView.vue') }
       ]
     },
-    { path: '/statistics', name: 'statistics', component: () => import('../views/StatisticsView.vue') }
+    { 
+      path: '/stats', 
+      name: 'stats', 
+      component: () => import('../views/StatsView.vue') 
+    }
   ]
 });
 

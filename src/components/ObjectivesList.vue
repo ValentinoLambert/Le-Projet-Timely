@@ -1,202 +1,269 @@
 <script setup>
 import { onMounted, ref, computed } from 'vue';
 import { useObjectiveStore } from '../stores/objectives';
-import { useToastStore } from '../stores/toast';
+import { marked } from 'marked';
 
 const objectiveStore = useObjectiveStore();
-const toastStore = useToastStore();
-const newObjName = ref('');
-const newObjContent = ref('');
-const showPast = ref(false);
-const searchKeywords = ref('');
 
-// Charger les objectifs au montage du composant
+// État local du formulaire et des filtres
+const newObjName = ref('');
+const newObjContent = ref(''); // Contenu description (Markdown)
+const showCompleted = ref(false); // Filtre pour afficher/masquer les terminés
+const expandedIds = ref(new Set()); // Suivi des éléments dépliés
+
+// Chargement initial des objectifs
 onMounted(() => {
   objectiveStore.fetchObjectives();
 });
 
-// Ajout d'un objectif
+// Tri des objectifs : les plus récents en premier (ID décroissant)
+const sortedObjectives = computed(() => {
+  return [...objectiveStore.objectives].sort((a, b) => b.id - a.id);
+});
+
+// Filtrage selon l'état "terminé"
+const filteredObjectives = computed(() => {
+  if (showCompleted.value) return sortedObjectives.value;
+  return sortedObjectives.value.filter(obj => !obj.done);
+});
+
+// Calcul du taux d'avancement journalier (entier arrondi)
+const completionRate = computed(() => {
+    const total = objectiveStore.todayTotalCount;
+    if (total === 0) return 0;
+    return Math.round((objectiveStore.todayDoneCount / total) * 100);
+});
+
+/**
+ * Ajoute un nouvel objectif via le store
+ * Réinitialise le formulaire en cas de succès
+ */
 const addObjective = async () => {
-  if (!newObjName.value) {
-    toastStore.show('Le titre est requis');
-    return;
-  }
+  if (!newObjName.value) return;
   try {
     await objectiveStore.createObjective(newObjName.value, newObjContent.value);
-    // Réinitialisation du formulaire
     newObjName.value = '';
     newObjContent.value = '';
-    toastStore.show('Objectif créé');
   } catch (err) {
-    toastStore.show('Erreur lors de la création de l\'objectif');
+    // L'erreur est gérée globalement ou dans le store (ex: toast)
   }
 };
 
-// Suppression d'un objectif avec confirmation
 const deleteObj = async (id) => {
-  if (confirm('Voulez-vous vraiment supprimer cet objectif ?')) {
-    try {
-      await objectiveStore.deleteObjective(id);
-      toastStore.show('Objectif supprimé');
-    } catch (err) {
-      toastStore.show('Erreur lors de la suppression');
-    }
-  }
+    await objectiveStore.deleteObjective(id);
 };
 
-// Filtrer les objectifs selon le cahier des charges
-// Par défaut: tous les objectifs du jour (done ou pas)
-// Avec toggle: inclure aussi les objectifs passés déjà réalisés
-const todayObjectives = computed(() => {
-  const today = new Date();
-  const result = [];
-  for (let i = 0; i < objectiveStore.objectives.length; i++) {
-    const objDate = new Date(objectiveStore.objectives[i].date);
-    if (objDate.toDateString() === today.toDateString()) {
-      result.push(objectiveStore.objectives[i]);
-    }
-  }
-  return result;
-});
+const toggleObj = async (obj) => {
+    await objectiveStore.toggleObjective(obj);
+};
 
-const pastDoneObjectives = computed(() => {
-  const today = new Date();
-  const result = [];
-  for (let i = 0; i < objectiveStore.objectives.length; i++) {
-    const objDate = new Date(objectiveStore.objectives[i].date);
-    if (objectiveStore.objectives[i].done && objDate.toDateString() !== today.toDateString()) {
-      result.push(objectiveStore.objectives[i]);
+/**
+ * Gère l'affichage/masquage des détails (description Markdown)
+ * @param {number} id - ID de l'objectif
+ */
+const toggleExpand = (id) => {
+    if (expandedIds.value.has(id)) {
+        expandedIds.value.delete(id);
+    } else {
+        expandedIds.value.add(id);
     }
-  }
-  return result;
-});
+};
 
-const displayedObjectives = computed(() => {
-  let objectives = [];
-  
-  if (showPast.value) {
-    for (let i = 0; i < todayObjectives.value.length; i++) {
-      objectives.push(todayObjectives.value[i]);
-    }
-    for (let i = 0; i < pastDoneObjectives.value.length; i++) {
-      objectives.push(pastDoneObjectives.value[i]);
-    }
-  } else {
-    for (let i = 0; i < todayObjectives.value.length; i++) {
-      objectives.push(todayObjectives.value[i]);
-    }
-  }
-  
-  if (searchKeywords.value) {
-    const keywords = searchKeywords.value.toLowerCase();
-    const filtered = [];
-    for (let i = 0; i < objectives.length; i++) {
-      const matchName = objectives[i].name.toLowerCase().includes(keywords);
-      const matchContent = objectives[i].content && objectives[i].content.toLowerCase().includes(keywords);
-      if (matchName || matchContent) {
-        filtered.push(objectives[i]);
-      }
-    }
-    return filtered;
-  }
-  
-  return objectives;
-});
+/**
+ * Convertit le contenu Markdown en HTML
+ */
+const renderMarkdown = (content) => {
+    if (!content) return '';
+    return marked.parse(content);
+};
 </script>
 
 <template>
-  <div>
-    <h3>Objectifs du jour</h3>
+  <div class="card">
+    <div class="header-row">
+      <h3>Objectifs du Jour</h3>
+      <div v-if="objectiveStore.todayTotalCount > 0" class="completion-badge text-sm">
+        {{ completionRate }}%
+      </div>
+    </div>
     
-    <!-- Formulaire d'ajout -->
-    <form @submit.prevent="addObjective">
-      <div>
-        <input v-model="newObjName" placeholder="Titre de l'objectif" v-autofocus required />
-      </div>
-      <div>
-        <textarea v-model="newObjContent" placeholder="Description en Markdown (optionnel)"></textarea>
-      </div>
-      <button type="submit">Ajouter l'objectif</button>
+    <p class="text-sm text-muted mb-4">Définissez vos priorités pour la journée.</p>
+
+    <form @submit.prevent="addObjective" class="objective-form">
+      <input 
+        v-model="newObjName" 
+        placeholder="Titre de l'objectif..." 
+        class="full-width mb-2"
+        required
+      />
+      <textarea
+        v-model="newObjContent"
+        placeholder="Description (Markdown supporté)..."
+        class="full-width mb-2"
+        rows="2"
+      ></textarea>
+      <button type="submit" class="full-width">Ajouter</button>
     </form>
 
-    <div v-if="objectiveStore.loading">Chargement...</div>
-    
-    <!-- Recherche -->
-    <div style="margin: 15px 0;">
-      <input 
-        v-model="searchKeywords" 
-        type="text" 
-        placeholder="Rechercher un objectif..." 
-        style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;"
-      />
+    <div class="filter-row text-sm">
+      <label class="checkbox-label">
+        <input type="checkbox" v-model="showCompleted" />
+        <span class="text-muted ml-2">Afficher les terminés</span>
+      </label>
     </div>
     
-    <!-- Filtre pour afficher/masquer les objectifs passés réalisés -->
-    <label style="margin: 10px 0; display: block;">
-      <input type="checkbox" v-model="showPast" />
-      Intégrer les objectifs passés déjà réalisés
-    </label>
+    <ul class="obj-list">
+      <li v-for="obj in filteredObjectives" :key="obj.id" :class="{ done: obj.done }">
+        <div class="obj-main">
+            <label class="item-row">
+            <input 
+                type="checkbox" 
+                :checked="obj.done" 
+                @change="toggleObj(obj)" 
+            />
+            <span class="obj-text">{{ obj.name }}</span>
+            </label>
+            
+            <div class="actions">
+                <button 
+                    v-if="obj.content" 
+                    @click.stop="toggleExpand(obj.id)" 
+                    class="action-btn" 
+                    :title="expandedIds.has(obj.id) ? 'Masquer détails' : 'Voir détails'"
+                >
+                    <span class="chevron" :class="{ rotated: expandedIds.has(obj.id) }">▼</span>
+                </button>
+                <button @click.stop="deleteObj(obj.id)" class="action-btn delete-btn" title="Supprimer">
+                &times;
+                </button>
+            </div>
+        </div>
+        
+        <!-- Markdown Description -->
+        <div v-if="expandedIds.has(obj.id) && obj.content" class="obj-details">
+            <div class="markdown-body" v-html="renderMarkdown(obj.content)"></div>
+        </div>
+      </li>
+    </ul>
     
-    <!-- Liste des objectifs -->
-    <div v-if="displayedObjectives.length > 0">
-      <transition-group name="list" tag="ul">
-        <li v-for="obj in displayedObjectives" :key="obj.id">
-          <!-- Checkbox pour marquer comme fait/non fait -->
-          <input 
-            type="checkbox" 
-            :checked="obj.done" 
-            @change="objectiveStore.toggleObjective(obj)" 
-          />
-          
-          <!-- Affichage du titre barré si fait -->
-          <span :style="{ textDecoration: obj.done ? 'line-through' : 'none' }">
-            <strong>{{ obj.name }}</strong>
-          </span>
-          
-          <!-- Date si différente d'aujourd'hui -->
-          <span v-if="obj.date" class="date" v-date-format:short>{{ obj.date }}</span>
-          
-          <!-- Contenu en markdown si présent -->
-          <div v-if="obj.content" v-markdown class="content">{{ obj.content }}</div>
-          
-          <button @click="deleteObj(obj.id)">Supprimer</button>
-        </li>
-      </transition-group>
+    <div v-if="filteredObjectives.length === 0" class="empty-state text-sm text-muted">
+      {{ showCompleted ? 'Aucun objectif pour le moment.' : 'Rien à faire (ou tout est fait !).' }}
     </div>
-    <p v-else>Aucun objectif à atteindre.</p>
   </div>
 </template>
 
 <style scoped>
-.list-enter-active,
-.list-leave-active {
-  transition: all 0.5s ease;
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
 }
 
-.list-enter-from {
-  opacity: 0;
-  transform: translateY(-20px);
+.mb-4 { margin-bottom: 1rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.ml-2 { margin-left: 0.5rem; }
+
+.completion-badge {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 0.125rem 0.5rem;
+  border-radius: 99px;
+  font-weight: 600;
+  color: var(--primary-color);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.list-leave-to {
-  opacity: 0;
-  transform: translateY(20px);
+.filter-row { 
+    margin: 1rem 0; 
+    display: flex;
+    justify-content: flex-end;
+}
+.checkbox-label { display: flex; align-items: center; cursor: pointer; }
+
+.obj-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
 
-.list-move {
-  transition: transform 0.5s ease;
+.obj-list li {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.obj-list li:last-child { border-bottom: none; }
+
+.obj-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
 }
 
-.date {
-  margin-left: 10px;
-  font-size: 12px;
-  color: #666;
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  cursor: pointer;
 }
 
-.content {
-  margin: 10px 0;
-  padding: 10px;
-  background-color: #f9f9f9;
-  border-left: 3px solid #1976d2;
+.obj-text {
+  transition: color 0.2s;
+  font-weight: 500;
+}
+
+.done .obj-text {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+.actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.delete-btn:hover { color: var(--danger-color); }
+.action-btn:hover { color: var(--text-primary); }
+
+.obj-details {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.chevron {
+    display: inline-block;
+    transition: transform 0.2s ease;
+    font-size: 0.8rem;
+}
+
+.rotated {
+    transform: rotate(180deg);
+}
+
+/* Styles Markdown Basiques */
+:deep(.markdown-body p) { margin-bottom: 0.5rem; }
+:deep(.markdown-body ul) { padding-left: 1.5rem; margin-bottom: 0.5rem; }
+:deep(.markdown-body h1), :deep(.markdown-body h2), :deep(.markdown-body h3) { 
+    font-size: 1rem; 
+    font-weight: 700; 
+    margin-top: 0.5rem; 
+    margin-bottom: 0.25rem; 
+    color: var(--text-primary);
 }
 </style>

@@ -33,6 +33,7 @@ export const useProjectStore = defineStore('projects', {
         }
       } catch (error) {
         console.error('Erreur lors de la récupération des projets', error);
+        this.$toast.error("Impossible de charger les projets.");
       } finally {
         this.loading = false;
       }
@@ -43,7 +44,9 @@ export const useProjectStore = defineStore('projects', {
       try {
         const response = await this.$api.post('/projects', { name, description });
         this.projects.push(response.data);
+        this.$toast.success("Projet créé !");
       } catch (error) {
+        this.$toast.error("Erreur lors de la création du projet.");
         throw error;
       }
     },
@@ -56,8 +59,10 @@ export const useProjectStore = defineStore('projects', {
         if (index !== -1) {
           this.projects[index] = response.data;
         }
+        this.$toast.success("Projet mis à jour.");
         return response.data;
       } catch (error) {
+        this.$toast.error("Erreur lors de la mise à jour.");
         throw error;
       }
     },
@@ -71,10 +76,14 @@ export const useProjectStore = defineStore('projects', {
         if (index !== -1) {
           this.projects[index] = response.data;
         }
+        const msg = project.is_enabled ? "Projet désactivé." : "Projet activé.";
+        this.$toast.info(msg);
         return response.data;
       } catch (error) {
+        this.$toast.error("Erreur lors du changement d'état.");
         throw error;
       }
     }
   }
 });
+

@@ -52,6 +52,7 @@ export const useObjectiveStore = defineStore('objectives', {
         }
       } catch (error) {
         console.error('Erreur lors de la récupération des objectifs', error);
+        this.$toast.error("Erreur chargement objectifs.");
       } finally {
         this.loading = false;
       }
@@ -62,7 +63,9 @@ export const useObjectiveStore = defineStore('objectives', {
       try {
         const response = await this.$api.post('/daily-objectives', { name, content });
         this.objectives.push(response.data);
+        this.$toast.success("Objectif ajouté !");
       } catch (error) {
+        this.$toast.error("Erreur création objectif.");
         throw error;
       }
     },
@@ -77,7 +80,9 @@ export const useObjectiveStore = defineStore('objectives', {
         if (index !== -1) {
           this.objectives[index] = response.data;
         }
+        if (action === 'done') this.$toast.success("Objectif atteint !");
       } catch (error) {
+        this.$toast.error("Erreur mise à jour objectif.");
         throw error;
       }
     },
@@ -90,9 +95,12 @@ export const useObjectiveStore = defineStore('objectives', {
         if (index !== -1) {
           this.objectives.splice(index, 1);
         }
+        this.$toast.info("Objectif supprimé.");
       } catch (error) {
+        this.$toast.error("Erreur suppression objectif.");
         throw error;
       }
     }
   }
 });
+

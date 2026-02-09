@@ -1,186 +1,284 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { computed } from 'vue';
+import { RouterLink, RouterView, useRouter } from 'vue-router';
+
+// Stores Pinia
 import { useAuthStore } from './stores/auth';
 import { useTimeEntryStore } from './stores/timeEntries';
 import { useObjectiveStore } from './stores/objectives';
-import { useRouter } from 'vue-router';
-import ToastNotifications from './components/ToastNotifications.vue';
-import { formatDuration } from './mixins/durations';
+import { useProjectStore } from './stores/projects';
+import { useActivityStore } from './stores/activities';
 
+// Initialisation des instances
+const router = useRouter();
 const authStore = useAuthStore();
 const timeEntryStore = useTimeEntryStore();
 const objectiveStore = useObjectiveStore();
-const router = useRouter();
+const projectStore = useProjectStore();
+const activityStore = useActivityStore();
 
-const currentDuration = ref(0);
-let interval = null;
-
-// Fonction pour calculer la durée actuelle
-const updateCurrentDuration = () => {
-  const active = timeEntryStore.activeEntry;
-  if (active && active.start) {
-    const start = new Date(active.start);
-    const now = new Date();
-    currentDuration.value = Math.floor((now - start) / 1000);
-  } else {
-    currentDuration.value = 0;
-  }
-};
-
-// Surveiller les changements de l'entrée active
-watch(() => timeEntryStore.activeEntry, (newActive) => {
-  // Recalculer immédiatement quand une nouvelle entrée active apparaît
-  updateCurrentDuration();
-});
-
-onMounted(async () => {
-  if (authStore.isAuthenticated) {
-    await timeEntryStore.fetchTimeEntries();
-    objectiveStore.fetchObjectives();
-    
-    // Calculer immédiatement la durée après le chargement des données
-    updateCurrentDuration();
-    
-    // Mettre à jour la durée en cours toutes les secondes
-    interval = setInterval(() => {
-      updateCurrentDuration();
-    }, 1000);
-  }
-});
-
-onUnmounted(() => {
-  if (interval) clearInterval(interval);
-});
-
+/**
+ * Gestion de la déconnexion utilisateur
+ * Redirige vers la page de connexion après nettoyage du store
+ */
 const logout = () => {
   authStore.logout();
   router.push('/login');
 };
 
-// Utiliser les getters centralisés du store
-const totalToday = computed(() => {
-  return formatDuration(timeEntryStore.totalTodaySeconds);
+// Récupération de l'entrée active (si elle existe)
+const activeActivity = computed(() => timeEntryStore.activeEntry);
+
+// Récupération du nom du projet actif
+const activeProjectName = computed(() => {
+  if (!activeActivity.value) return '';
+  const p = projectStore.projects.find(p => p.id === activeActivity.value.project_id);
+  return p ? p.name : 'Inconnu';
 });
 
-const objectivesCount = computed(() => {
-  return objectiveStore.todayDoneCount + '/' + objectiveStore.todayTotalCount;
+// Récupération du nom de l'activité active
+const activeActivityName = computed(() => {
+  if (!activeActivity.value) return '';
+  const a = activityStore.activities.find(a => a.id === activeActivity.value.activity_id);
+  return a ? a.name : 'Inconnu';
 });
 
-const stopCurrentActivity = async () => {
-  if (timeEntryStore.activeEntry) {
-    await timeEntryStore.stopTimeEntry(timeEntryStore.activeEntry.id);
+// Calcul de la durée écoulée pour l'activité en cours
+// Format: HH:MM:SS
+const activeDuration = computed(() => {
+  const seconds = timeEntryStore.currentDurationSeconds;
+  if (!seconds && seconds !== 0) return '00:00:00';
+  
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+});
+
+// Calcul du total d'heures travaillées aujourd'hui
+// Format: XhXX
+const totalHoursToday = computed(() => {
+  const seconds = timeEntryStore.totalTodaySeconds;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${h}h${m > 0 ? m.toString().padStart(2, '0') : ''}`;
+});
+
+// Progression des objectifs journaliers (Réalisés / Total)
+const objectivesProgress = computed(() => {
+  return `${objectiveStore.todayDoneCount} / ${objectiveStore.todayTotalCount}`;
+});
+
+/**
+ * Arrête l'activité en cours directement depuis le header
+ */
+const stopActivity = async () => {
+  if (activeActivity.value) {
+    await timeEntryStore.stopTimeEntry(activeActivity.value.id);
   }
 };
 </script>
 
 <template>
-  <ToastNotifications />
-  <header v-if="authStore.isAuthenticated">
-    <nav>
-      <div class="nav-left">
-        <router-link to="/">Activité</router-link> |
-        <router-link to="/statistics">Statistiques</router-link> |
-        <router-link to="/settings">Paramètres</router-link>
-      </div>
+  <div id="app-container">
+    <header v-if="authStore.isAuthenticated">
+      <div class="logo">Timely</div>
       
-      <div class="nav-center" v-if="timeEntryStore.activeEntry">
-        <span class="active-indicator">●</span>
-        <strong>En cours:</strong>
-        <span>{{ (timeEntryStore.activeEntry.project && timeEntryStore.activeEntry.project.name) || 'Projet' }} - {{ (timeEntryStore.activeEntry.activity && timeEntryStore.activeEntry.activity.name) || 'Activité' }}</span>
-        <span class="duration">{{ formatDuration(currentDuration) }}</span>
-        <button @click="stopCurrentActivity" class="stop-btn">Arrêter</button>
-      </div>
-      
-      <div class="nav-right">
-        <span>Aujourd'hui: {{ totalToday }}</span> |
-        <span>Objectifs: {{ objectivesCount }}</span> |
-        <button @click="logout">Déconnexion</button>
-      </div>
-    </nav>
-  </header>
-  <router-view />
+      <nav>
+        <div class="nav-links">
+          <RouterLink to="/" class="nav-item">Tableau de bord</RouterLink>
+          <RouterLink to="/stats" class="nav-item">Statistiques</RouterLink>
+          <RouterLink to="/settings" class="nav-item">Paramètres</RouterLink>
+        </div>
+
+        <div class="header-stats">
+            <!-- Indicateur d'activité active -->
+            <div v-if="activeActivity" class="active-indicator">
+                <span class="pulse-dot"></span>
+                <div class="active-info">
+                    <span class="active-title" :title="activeProjectName + ' - ' + activeActivityName">
+                        {{ activeProjectName }} / {{ activeActivityName }}
+                    </span>
+                    <span class="active-timer">{{ activeDuration }}</span>
+                </div>
+                <button @click="stopActivity" class="stop-btn" title="Arrêter l'activité">
+                    <div class="stop-icon"></div>
+                </button>
+            </div>
+
+            <!-- Statistiques Journalières -->
+            <div class="daily-summary">
+                <div class="stat-item" title="Temps total travaillé aujourd'hui">
+                    <span class="stat-label">Temps</span>
+                    <span class="stat-value">{{ totalHoursToday }}</span>
+                </div>
+                <div class="stat-item" title="Objectifs atteints / Total">
+                    <span class="stat-label">Objectifs</span>
+                    <span class="stat-value">{{ objectivesProgress }}</span>
+                </div>
+            </div>
+
+            <button @click="logout" class="logout-btn secondary text-sm">Déconnexion</button>
+        </div>
+
+      </nav>
+    </header>
+    
+    <main>
+      <router-view />
+    </main>
+  </div>
 </template>
 
-<style>
-nav { 
+<style scoped>
+header {
+    background-color: var(--surface-color);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo {
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: var(--primary-color);
+  letter-spacing: -0.025em;
+}
+
+nav {
+    display: flex;
+    align-items: center;
+    gap: 3rem;
+    flex: 1;
+    justify-content: space-between;
+    margin-left: 3rem;
+}
+
+.nav-links {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 20px; 
-  border-bottom: 2px solid #ccc; 
-  background-color: #f5f5f5;
-  margin-bottom: 20px;
+  gap: 1.5rem;
 }
 
-.nav-left, .nav-center, .nav-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.nav-item {
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: color 0.2s;
 }
 
-.nav-center {
-  background-color: #e3f2fd;
-  padding: 8px 15px;
-  border-radius: 5px;
-  animation: pulse 2s infinite;
+.nav-item:hover, .nav-item.router-link-active {
+    color: var(--text-primary);
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
+.header-stats {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
 }
 
 .active-indicator {
-  color: #4caf50;
-  font-size: 20px;
-  animation: blink 1s infinite;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background-color: rgba(99, 102, 241, 0.1);
+    padding: 0.35rem 1rem;
+    border-radius: 99px;
+    border: 1px solid rgba(99, 102, 241, 0.2);
 }
 
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    background-color: var(--primary-color);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
 }
 
-.duration {
-  font-family: monospace;
-  font-size: 18px;
-  font-weight: bold;
-  color: #1976d2;
+.active-info {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.75rem;
+    line-height: 1.2;
+}
+
+.active-title {
+    font-weight: 600;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-primary);
+}
+
+.active-timer {
+    font-family: monospace;
+    color: var(--primary-color);
+    font-weight: 700;
 }
 
 .stop-btn {
-  background-color: #f44336;
-  color: white;
-  border: none;
-  padding: 5px 15px;
-  border-radius: 3px;
-  cursor: pointer;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    margin-left: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s;
 }
 
 .stop-btn:hover {
-  background-color: #d32f2f;
+    background-color: rgba(239, 68, 68, 0.1);
 }
 
-nav a { 
-  margin: 0 5px; 
-  text-decoration: none; 
-  color: #333;
+.stop-icon {
+    width: 12px;
+    height: 12px;
+    background-color: var(--danger-color);
+    border-radius: 2px;
 }
 
-nav a.router-link-active {
-  font-weight: bold;
-  color: #1976d2;
+.daily-summary {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    padding: 0 1.5rem;
 }
 
-nav button {
-  background: none;
-  border: none;
-  color: #333;
-  cursor: pointer;
-  font-size: 14px;
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.2;
 }
 
-nav button:hover {
-  color: #1976d2;
+.stat-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.stat-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.logout-btn {
+    padding: 0.35rem 1rem;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
 }
 </style>

@@ -3,23 +3,41 @@ import { ref } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useRouter } from 'vue-router';
 
+/**
+ * Vue de connexion
+ * Permet à l'utilisateur de se connecter avec une clé API existante
+ */
+
 const authStore = useAuthStore();
 const router = useRouter();
+
+// État du formulaire
 const apiKey = ref('');
 const error = ref('');
 const loading = ref(false);
 
+/**
+ * Gère la soumission du formulaire de connexion
+ * Appelle le store auth pour valider la clé API et récupérer le profil
+ */
 const login = async () => {
+  // Validation basique
   if (!apiKey.value) {
     error.value = 'Veuillez saisir une clé API';
     return;
   }
+  
   loading.value = true;
   error.value = '';
+  
   try {
+    // Tenter la connexion via le store
     await authStore.login(apiKey.value);
+    
+    // Rediriger vers la page d'accueil si succès
     router.push('/');
   } catch (err) {
+    // Afficher l'erreur en cas d'échec
     error.value = 'Clé API invalide ou problème de connexion';
   } finally {
     loading.value = false;

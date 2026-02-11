@@ -3,14 +3,22 @@ import { onMounted, ref } from 'vue';
 import { useProjectStore } from '../stores/projects';
 import { useActivityStore } from '../stores/activities';
 
+/**
+ * Vue de paramètres avec navigation par onglets
+ * Permet la gestion rapide des projets et activités
+ * Version simplifiée pour accès rapide (version complète dans /settings/projects et /settings/activities)
+ */
+
 const projectStore = useProjectStore();
 const activityStore = useActivityStore();
 
+// État du formulaire et navigation
 const newProjectName = ref('');
 const newProjectDesc = ref('');
 const newActivityName = ref('');
 const newActivityColor = ref('#000000');
 const activeTab = ref('projects');
+
 
 onMounted(() => {
   projectStore.fetchProjects();

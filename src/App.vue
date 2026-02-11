@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { RouterLink, RouterView, useRouter } from 'vue-router';
 
 // Stores Pinia
@@ -43,10 +43,49 @@ const activeActivityName = computed(() => {
   return a ? a.name : 'Inconnu';
 });
 
+/**
+ * Timer en temps réel synchronisé avec TimeTracker
+ * Calcule directement depuis la date de début de l'activité active
+ */
+const currentDuration = ref(0);
+let timerInterval = null;
+
+/**
+ * Met à jour la durée écoulée en calculant la différence
+ * entre maintenant et le début de l'activité
+ */
+const updateTimer = () => {
+  if (timeEntryStore.activeEntry?.start) {
+    const startTime = new Date(timeEntryStore.activeEntry.start);
+    const now = new Date();
+    const diff = Math.floor((now - startTime) / 1000);
+    currentDuration.value = diff > 0 ? diff : 0;
+  } else {
+    currentDuration.value = 0;
+  }
+};
+
+/**
+ * Démarre le timer au montage et le met à jour toutes les secondes
+ */
+onMounted(() => {
+  updateTimer();
+  timerInterval = setInterval(updateTimer, 1000);
+});
+
+/**
+ * Nettoie l'intervalle au démontage du composant
+ */
+onUnmounted(() => {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+  }
+});
+
 // Calcul de la durée écoulée pour l'activité en cours
 // Format: HH:MM:SS
 const activeDuration = computed(() => {
-  const seconds = timeEntryStore.currentDurationSeconds;
+  const seconds = currentDuration.value;
   if (!seconds && seconds !== 0) return '00:00:00';
   
   const h = Math.floor(seconds / 3600);
@@ -76,6 +115,7 @@ const objectivesProgress = computed(() => {
 const stopActivity = async () => {
   if (activeActivity.value) {
     await timeEntryStore.stopTimeEntry(activeActivity.value.id);
+    currentDuration.value = 0;
   }
 };
 </script>

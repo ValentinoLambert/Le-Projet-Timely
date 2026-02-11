@@ -3,6 +3,12 @@ import { useAuthStore } from '../stores/auth';
 import ObjectivesList from '../components/ObjectivesList.vue';
 import TimeTracker from '../components/TimeTracker.vue';
 
+/**
+ * Vue principale du dashboard
+ * Affiche le time tracker et la liste des objectifs journaliers
+ * Layout en grille responsive (2 colonnes sur desktop, 1 sur mobile)
+ */
+
 const authStore = useAuthStore();
 </script>
 

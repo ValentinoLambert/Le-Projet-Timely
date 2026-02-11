@@ -1,15 +1,23 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '../../stores/auth';
-import { useToastStore } from '../../stores/toast';
+import { toast } from 'vue3-toastify';
 import apiClient from '../../plugins/axios';
 
-const authStore = useAuthStore();
-const toastStore = useToastStore();
+/**
+ * Vue de gestion du profil utilisateur
+ * Permet de modifier le nom et l'email de l'utilisateur
+ */
 
+const authStore = useAuthStore();
+
+// État du formulaire
 const name = ref('');
 const email = ref('');
 
+/**
+ * Charge les données du profil au montage du composant
+ */
 onMounted(() => {
   if (authStore.user) {
     name.value = authStore.user.name || '';
@@ -17,9 +25,12 @@ onMounted(() => {
   }
 });
 
+/**
+ * Met à jour le profil utilisateur via l'API
+ */
 const updateProfile = async () => {
   if (!name.value || !email.value) {
-    toastStore.show('Veuillez remplir tous les champs');
+    toast.error('Veuillez remplir tous les champs');
     return;
   }
 
@@ -28,10 +39,13 @@ const updateProfile = async () => {
       name: name.value,
       email: email.value
     });
+    
+    // Mettre à jour les données locales
     authStore.user = response.data;
-    toastStore.show('Profil mis à jour avec succès');
+    
+    toast.success('Profil mis à jour avec succès');
   } catch (err) {
-    toastStore.show('Erreur lors de la mise à jour du profil');
+    toast.error('Erreur lors de la mise à jour du profil');
   }
 };
 </script>

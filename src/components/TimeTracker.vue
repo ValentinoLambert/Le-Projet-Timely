@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref, computed, onUnmounted } from 'vue';
 import { toast } from 'vue3-toastify';
+import { marked } from 'marked';
 import { useTimeEntryStore } from '../stores/timeEntries';
 import { useProjectStore } from '../stores/projects';
 import { useActivityStore } from '../stores/activities';
@@ -12,6 +13,9 @@ const activityStore = useActivityStore();
 const selectedProjectId = ref('');
 const selectedActivityId = ref('');
 const comment = ref('');
+
+// Mode édition ou aperçu pour les notes Markdown
+const isEditingNotes = ref(true);
 
 // Gestion du commentaire actif (lecture/écriture via le store)
 const activeComment = computed({
@@ -105,6 +109,14 @@ const formatTime = (isoString) => {
     if (!isoString) return '';
     return new Date(isoString).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 };
+
+/**
+ * Convertit le Markdown en HTML pour l'affichage
+ */
+const renderMarkdown = (content) => {
+  if (!content) return '';
+  return marked.parse(content);
+};
 </script>
 
 <template>
@@ -132,9 +144,15 @@ const formatTime = (isoString) => {
             <label class="text-sm text-muted">Notes</label>
             <textarea 
                 v-model="activeComment" 
-                placeholder="Ajouter des notes..." 
-                rows="2"
+                placeholder="Ajouter des notes (Markdown supporté)..." 
+                rows="3"
             ></textarea>
+            
+            <!-- Aperçu direct Markdown -->
+            <div v-if="activeComment" class="live-preview">
+              <span class="preview-label">Aperçu :</span>
+              <div class="markdown-body" v-html="renderMarkdown(activeComment)"></div>
+            </div>
         </div>
 
         <button @click="stopActivity" class="danger">Arrêter</button>
@@ -184,7 +202,9 @@ const formatTime = (isoString) => {
                           <span class="entry-project">{{ getProjectName(entry.project_id) }}</span>
                           <span class="entry-activity text-muted">{{ getActivityName(entry.activity_id) }}</span>
                         </div>
-                        <span v-if="entry.comment" class="entry-comment text-sm text-muted">{{ entry.comment }}</span>
+                        <div v-if="entry.comment" class="entry-comment-box">
+                          <div class="markdown-body text-sm" v-html="renderMarkdown(entry.comment)"></div>
+                        </div>
                      </div>
                 </div>
                 <div class="entry-time text-sm">
@@ -261,6 +281,79 @@ const formatTime = (isoString) => {
 
 .comment-group {
     margin: 1rem 0;
+}
+
+.live-preview {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  border-left: 3px solid var(--primary-color);
+}
+
+.preview-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.entry-comment-box {
+  margin-top: 0.25rem;
+}
+
+/* Styles Markdown Complets */
+:deep(.markdown-body) {
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+:deep(.markdown-body p) { 
+  margin-bottom: 0.5rem; 
+}
+
+:deep(.markdown-body strong) {
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+:deep(.markdown-body em) {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+:deep(.markdown-body ul),
+:deep(.markdown-body ol) { 
+  padding-left: 1.2rem; 
+  margin-bottom: 0.5rem; 
+}
+
+:deep(.markdown-body h1), 
+:deep(.markdown-body h2), 
+:deep(.markdown-body h3) { 
+  font-weight: 700; 
+  margin-top: 0.75rem; 
+  margin-bottom: 0.25rem; 
+  color: var(--text-primary);
+}
+
+:deep(.markdown-body h1) { font-size: 1.2rem; }
+:deep(.markdown-body h2) { font-size: 1.1rem; }
+:deep(.markdown-body h3) { font-size: 1rem; }
+
+:deep(.markdown-body code) {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+:deep(.markdown-body a) {
+  color: var(--primary-color);
+  text-decoration: underline;
 }
 
 .full-width { width: 100%; }

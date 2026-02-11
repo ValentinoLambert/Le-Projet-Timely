@@ -3,22 +3,40 @@ import { ref } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useRouter } from 'vue-router';
 
+/**
+ * Vue d'inscription
+ * Permet de créer un compte et obtenir une clé API
+ * L'API génère automatiquement la clé lors de la création
+ */
+
 const authStore = useAuthStore();
 const router = useRouter();
+
+// État du formulaire
 const name = ref('');
 const email = ref('');
 const error = ref('');
 const loading = ref(false);
 
+/**
+ * Gère la soumission du formulaire d'inscription
+ * Crée un compte via l'API et récupère la clé générée
+ */
 const register = async () => {
+  // Validation des champs requis
   if (!name.value || !email.value) {
     error.value = 'Tous les champs sont requis';
     return;
   }
+  
   loading.value = true;
   error.value = '';
+  
   try {
+    // Créer le compte et obtenir la clé API
     await authStore.register(name.value, email.value);
+    
+    // Rediriger vers le dashboard
     router.push('/');
   } catch (err) {
     error.value = 'Erreur lors de la création du compte. Vérifiez votre email.';

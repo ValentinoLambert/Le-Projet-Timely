@@ -1,11 +1,21 @@
 <script setup>
 import { onMounted, ref } from 'vue';
+import { toast } from 'vue3-toastify';
 import { useProjectStore } from '../../stores/projects';
-import { useToastStore } from '../../stores/toast';
+
+/**
+ * Vue de gestion des projets
+ * 
+ * Fonctionnalités:
+ * - CRUD complet des projets
+ * - Activation/désactivation de projets
+ * - Recherche par mots-clés (nom et description)
+ * - Édition inline
+ */
 
 const projectStore = useProjectStore();
-const toastStore = useToastStore();
 
+// État du formulaire
 const newName = ref('');
 const newDescription = ref('');
 const searchKeywords = ref('');
@@ -15,9 +25,12 @@ onMounted(() => {
   projectStore.fetchProjects();
 });
 
+/**
+ * Ajoute un nouveau projet et réinitialise le formulaire
+ */
 const addProject = async () => {
   if (!newName.value) {
-    toastStore.show('Le nom est obligatoire');
+    toast.error('Le nom est obligatoire');
     return;
   }
 
@@ -25,22 +38,28 @@ const addProject = async () => {
     await projectStore.createProject(newName.value, newDescription.value);
     newName.value = '';
     newDescription.value = '';
-    toastStore.show('Projet créé avec succès');
+    toast.success('Projet créé avec succès');
   } catch (err) {
-    toastStore.show('Erreur lors de la création du projet');
+    toast.error('Erreur lors de la création du projet');
   }
 };
 
+/**
+ * Active ou désactive un projet
+ */
 const toggleProject = async (project) => {
   try {
     await projectStore.toggleProject(project);
     await projectStore.fetchProjects();
-    toastStore.show(project.is_enabled ? 'Projet désactivé' : 'Projet activé');
+    toast.info(project.is_enabled ? 'Projet désactivé' : 'Projet activé');
   } catch (err) {
-    toastStore.show('Erreur lors de la modification');
+    toast.error('Erreur lors de la modification');
   }
 };
 
+/**
+ * Passe un projet en mode édition
+ */
 const editProject = (project) => {
   editing.value = {
     id: project.id,
@@ -49,9 +68,12 @@ const editProject = (project) => {
   };
 };
 
+/**
+ * Sauvegarde les modifications d'un projet
+ */
 const saveEdit = async () => {
   if (!editing.value || !editing.value.name) {
-    toastStore.show('Le nom est obligatoire');
+    toast.error('Le nom est obligatoire');
     return;
   }
   
@@ -63,9 +85,9 @@ const saveEdit = async () => {
     );
     editing.value = null;
     await projectStore.fetchProjects();
-    toastStore.show('Projet modifié avec succès');
+    toast.success('Projet modifié avec succès');
   } catch (err) {
-    toastStore.show('Erreur lors de la modification');
+    toast.error('Erreur lors de la modification');
   }
 };
 
@@ -73,18 +95,25 @@ const cancelEdit = () => {
   editing.value = null;
 };
 
+/**
+ * Filtre les projets selon les mots-clés de recherche
+ * Recherche dans le nom et la description
+ */
 const filteredProjects = () => {
   if (!searchKeywords.value) return projectStore.projects;
   
   const keywords = searchKeywords.value.toLowerCase();
   const result = [];
+  
   for (let i = 0; i < projectStore.projects.length; i++) {
     const matchName = projectStore.projects[i].name.toLowerCase().includes(keywords);
-    const matchDescription = projectStore.projects[i].description && projectStore.projects[i].description.toLowerCase().includes(keywords);
+    const matchDescription = projectStore.projects[i].description && 
+                            projectStore.projects[i].description.toLowerCase().includes(keywords);
     if (matchName || matchDescription) {
       result.push(projectStore.projects[i]);
     }
   }
+  
   return result;
 };
 </script>

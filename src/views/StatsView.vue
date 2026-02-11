@@ -16,22 +16,41 @@ import { useTimeEntryStore } from '../stores/timeEntries';
 import { useProjectStore } from '../stores/projects';
 import { useActivityStore } from '../stores/activities';
 
-// Enregistrement des composants Chart.js
+/**
+ * Vue des statistiques et rapports
+ * 
+ * Fonctionnalités principales:
+ * - Filtrage par période (date de début et de fin)
+ * - Filtrage par projet
+ * - Graphique en barres du temps par projet (Chart.js)
+ * - Graphique en donut du temps par activité (Chart.js)
+ * - Liste détaillée des entrées avec pagination
+ * - Calcul du temps total de la période
+ * 
+ * La pagination est côté client avec 10 entrées par page
+ */
+
+// Enregistrement des composants Chart.js nécessaires
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 const timeEntryStore = useTimeEntryStore();
 const projectStore = useProjectStore();
 const activityStore = useActivityStore();
 
-// Filtres de date
+// Filtres de recherche
 const startDate = ref('');
 const endDate = ref('');
 const selectedProjectId = ref('');
 
-// Pagination
+// Pagination client-side
 const currentPage = ref(1);
 const rowsPerPage = ref(10);
 
+/**
+ * Initialisation au chargement du composant
+ * Configure les dates par défaut (du début du mois à aujourd'hui)
+ * Charge les données initiales
+ */
 onMounted(() => {
   // Par défaut : du début du mois à aujourd'hui
   const now = new Date();
@@ -40,12 +59,14 @@ onMounted(() => {
   startDate.value = firstDay.toISOString().split('T')[0];
   endDate.value = now.toISOString().split('T')[0];
 
+  // Charger les projets, activités et données
   Promise.all([
     projectStore.fetchProjects(),
     activityStore.fetchActivities(),
     fetchData()
   ]);
 });
+
 
 const fetchData = async () => {
   const filters = {

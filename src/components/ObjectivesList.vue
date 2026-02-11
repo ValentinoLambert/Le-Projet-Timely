@@ -256,14 +256,85 @@ const renderMarkdown = (content) => {
     transform: rotate(180deg);
 }
 
-/* Styles Markdown Basiques */
-:deep(.markdown-body p) { margin-bottom: 0.5rem; }
-:deep(.markdown-body ul) { padding-left: 1.5rem; margin-bottom: 0.5rem; }
-:deep(.markdown-body h1), :deep(.markdown-body h2), :deep(.markdown-body h3) { 
-    font-size: 1rem; 
-    font-weight: 700; 
-    margin-top: 0.5rem; 
-    margin-bottom: 0.25rem; 
-    color: var(--text-primary);
+
+/* Styles Markdown Complets */
+:deep(.markdown-body) {
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+:deep(.markdown-body p) { 
+  margin-bottom: 0.75rem; 
+}
+
+:deep(.markdown-body strong) {
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+:deep(.markdown-body em) {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+:deep(.markdown-body ul),
+:deep(.markdown-body ol) { 
+  padding-left: 1.5rem; 
+  margin-bottom: 0.75rem; 
+}
+
+:deep(.markdown-body li) {
+  margin-bottom: 0.25rem;
+}
+
+:deep(.markdown-body h1), 
+:deep(.markdown-body h2), 
+:deep(.markdown-body h3) { 
+  font-weight: 700; 
+  margin-top: 1rem; 
+  margin-bottom: 0.5rem; 
+  color: var(--text-primary);
+}
+
+:deep(.markdown-body h1) { font-size: 1.5rem; }
+:deep(.markdown-body h2) { font-size: 1.25rem; }
+:deep(.markdown-body h3) { font-size: 1.1rem; }
+
+:deep(.markdown-body code) {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+:deep(.markdown-body pre) {
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 0.75rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin-bottom: 0.75rem;
+}
+
+:deep(.markdown-body pre code) {
+  background-color: transparent;
+  padding: 0;
+}
+
+:deep(.markdown-body a) {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+:deep(.markdown-body a:hover) {
+  opacity: 0.8;
+}
+
+:deep(.markdown-body blockquote) {
+  border-left: 3px solid var(--primary-color);
+  padding-left: 1rem;
+  margin-left: 0;
+  color: var(--text-secondary);
+  font-style: italic;
 }
 </style>

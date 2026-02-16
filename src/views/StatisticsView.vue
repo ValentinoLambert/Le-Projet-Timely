@@ -8,16 +8,29 @@ import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, Li
 import { formatDuration } from '../mixins/durations';
 import { formatDateTime } from '../mixins/dates';
 
+/**
+ * Vue des statistiques (Version Alternative/Legacy)
+ * 
+ * Cette vue permet d'analyser le temps passé par projet et par activité.
+ * Elle utilise Chart.js pour le rendu visuel et propose un filtrage par date.
+ * Note: Une version plus moderne existe dans StatsView.vue.
+ */
+
+// Enregistrement des composants Chart.js
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement);
 
 const timeEntryStore = useTimeEntryStore();
 const projectStore = useProjectStore();
 const activityStore = useActivityStore();
 
+// Filtres de recherche
 const dateFrom = ref('');
 const dateTo = ref('');
 const selectedProject = ref('');
 
+/**
+ * Initialisation : configure les dates par défaut et charge les données
+ */
 onMounted(async () => {
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -35,14 +48,18 @@ onMounted(async () => {
   ]);
 });
 
+/**
+ * Calcule les entrées filtrées selon la période et le projet sélectionnés
+ * Inclut un tri chronologique (tri à bulles pour la démonstration)
+ */
 const filteredEntries = computed(() => {
   const entries = [];
   
-  // Filtrer les entrées
+  // Filtrage manuel
   for (let i = 0; i < timeEntryStore.timeEntries.length; i++) {
     const entry = timeEntryStore.timeEntries[i];
     
-    if (!entry.end) continue;
+    if (!entry.end) continue; // On ne traite que les entrées terminées
     
     const d = new Date(entry.start);
     const month = d.getMonth() + 1;
@@ -58,7 +75,7 @@ const filteredEntries = computed(() => {
     entries.push(entry);
   }
   
-  // Tri chronologique ascendant (tri à bulles simple)
+  // Tri chronologique ascendant (tri à bulles classique)
   for (let i = 0; i < entries.length - 1; i++) {
     for (let j = 0; j < entries.length - 1 - i; j++) {
       const dateA = new Date(entries[j].start);
@@ -74,6 +91,9 @@ const filteredEntries = computed(() => {
   return entries;
 });
 
+/**
+ * Temps total cumulé sur la période sélectionnée
+ */
 const totalDuration = computed(() => {
   let totalSeconds = 0;
   for (let i = 0; i < filteredEntries.value.length; i++) {
@@ -85,6 +105,9 @@ const totalDuration = computed(() => {
   return formatDuration(totalSeconds);
 });
 
+/**
+ * Agrégation du temps par projet
+ */
 const timeByProject = computed(() => {
   const byProject = {};
   for (let i = 0; i < filteredEntries.value.length; i++) {
@@ -105,6 +128,9 @@ const timeByProject = computed(() => {
   return byProject;
 });
 
+/**
+ * Agrégation du temps par activité (avec gestion des couleurs)
+ */
 const timeByActivity = computed(() => {
   const byActivity = {};
   for (let i = 0; i < filteredEntries.value.length; i++) {
@@ -128,10 +154,12 @@ const timeByActivity = computed(() => {
   return byActivity;
 });
 
+/** Nombre de projets différents impactés par les filtres */
 const numberOfProjects = computed(() => {
   return Object.keys(timeByProject.value).length;
 });
 
+/** Configuration des données pour le graphique Pie (Projets) */
 const projectChartData = computed(() => {
   const projectTimes = Object.values(timeByProject.value);
   const hoursData = [];
@@ -149,6 +177,7 @@ const projectChartData = computed(() => {
   };
 });
 
+/** Configuration des données pour le graphique Bar (Activités) */
 const activityChartData = computed(() => {
   const activityTimes = Object.values(timeByActivity.value);
   const hoursData = [];
@@ -168,12 +197,13 @@ const activityChartData = computed(() => {
   };
 });
 
+/** Options de base pour les graphiques */
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false
 };
 
-// Méthodes helper pour afficher les noms
+/** Récupère le nom d'un projet par son ID */
 function getProjectName(projectId) {
   let project = null;
   for (let i = 0; i < projectStore.projects.length; i++) {
@@ -188,6 +218,7 @@ function getProjectName(projectId) {
   return '-';
 }
 
+/** Récupère le nom d'une activité par son ID */
 function getActivityName(activityId) {
   let activity = null;
   for (let i = 0; i < activityStore.activities.length; i++) {
